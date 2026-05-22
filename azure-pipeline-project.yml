@@ -1,36 +1,34 @@
----
 trigger:
   - main
 
 pr: none
 
 resources:
-- repo: self
+  - repo: self
 
 variables:
-  dockerRegitryServiceConnection: 'dockerhub-conn'
   imageRepository: 'sravannx/sandbox-pipeline-app'
   dockerfilePath: '$(Build.SourcesDirectory)/Dockerfile'
-  vmImageName: 'ubuntu-latest'
   tag: 'dev'
+  vmImageName: 'ubuntu-latest'
 
 stages:
   - stage: Build
-    displayName: Build and push stage
+    displayName: Build and Push Stage
     jobs:
       - job: Build
         displayName: Build and Push Docker Image
         pool:
-            vmImage: $(vmImageName)
+          vmImage: $(vmImageName)
         steps:
           - checkout: self
 
           - task: Docker@2
-            displayName: Build and Push image to Docker Hub
+            displayName: Build and push image to Docker Hub
             inputs:
               command: buildAndPush
               repository: $(imageRepository)
               dockerfile: $(dockerfilePath)
-              containerRegistry: $(dockerRegistryServiceConnection)
+              containerRegistry: 'dockerhub-conn'
               tags: |
                 $(tag)
