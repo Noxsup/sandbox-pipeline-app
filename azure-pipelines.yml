@@ -1,29 +1,55 @@
-# Docker
-# Build a Docker image
-# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
-
 trigger:
-- main
+  - main
+
+pr: none
 
 resources:
-- repo: self
+  - repo: self
 
 variables:
-  tag: '$(Build.BuildId)'
+  imageRepository: 'sravannx/sandbox-pipeline-app'
+  dockerfilePath: '$(Build.SourcesDirectory)/Dockerfile'
+  vmImageName: 'ubuntu-latest'
+  tag: 'dev'
 
 stages:
-- stage: Build
-  displayName: Build image
-  jobs:
-  - job: Build
-    displayName: Build
-    pool:
-      vmImage: ubuntu-latest
-    steps:
-    - task: Docker@2
-      displayName: Build an image
-      inputs:
-        command: build
-        dockerfile: '$(Build.SourcesDirectory)/Dockerfile'
-        tags: |
-          $(tag)
+  - stage: Validate
+    displayName: Validate
+    jobs:
+      - job: Lint
+        displayName: Lint Dockerfile and YAML
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - checkout: self
+
+          - script: |
+              docker run --rm -i hadolint/hadolint < $(dockerfilePath)
+            displayName: Lint Dockerfile with Hadolint
+
+          - script: |
+              python3 -m pip install --user yamllint
+              ~/.local/bin/yamllint azure-pipeline-project.yml
+            displayName: Lint Pipeline YAML
+
+  - stage: BuildAndPush
+    displayName: Build and Push
+    dependsOn: Validate
+    jobs:
+      - job: BuildAndPushImage
+        displayName: Build and Push Docker Image
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - checkout: self
+
+          - task: Docker@2
+            displayName: Build and Push to Docker Hub
+            inputs:
+              command: buildAndPush
+              repository: $(imageRepository)
+              dockerfile: $(dockerfilePath)
+              containerRegistry: 'dockerhub-conn'
+              tags: |
+                $(tag)
+                latest
